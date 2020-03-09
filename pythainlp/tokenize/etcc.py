@@ -1,62 +1,63 @@
 # -*- coding: utf-8 -*-
-from __future__ import absolute_import,division,unicode_literals,print_function
-'''
-โปรแกรม ETCC ใน Python
+"""
+Segmenting text to Enhanced Thai Character Cluster (ETCC)
+Python implementation by Wannaphong Phatthiyaphaibun
 
-พัฒนาโดย นาย วรรณพงษ์  ภัททิยไพบูลย์
+Notebook:
+https://colab.research.google.com/drive/1UTQgxxMRxOr9Jp1B1jcq1frBNvorhtBQ
 
-19 มิ.ย. 2560
+:See Also:
 
-วิธีใช้งาน
-etcc(คำ)
-คืนค่า โดยมี / แบ่งกลุ่มคำ
-'''
+Inrut, Jeeragone, Patiroop Yuanghirun, Sarayut Paludkong, Supot Nitsuwat, and Para Limmaneepraserth.
+"Thai word segmentation using combination of forward and backward longest matching techniques."
+In International Symposium on Communications and Information Technology (ISCIT), pp. 37-40. 2001.
+"""
 import re
-C=['ก','ข','ฃ','ค','ฅ','ฆ','ง','จ','ฉ','ช','ฌ','ซ','ศ','ษ','ส','ญ','ฎ','ฑ','ด','ฏ','ต','ฐ','ฑ','ฒ','ถ','ท','ธ','ณ','น','บ','ป','ผ','พ','ภ','ฝ','ฟ','ม','ย','ร','ล','ฬ','ว','ห','ฮ']
-UV=['็','ี','ื','ิ']
-UV1=['ั','ี']
-LV=['ุ','ู']
-c='['+''.join(C)+']'
-uv2='['+''.join(['ั','ื'])+']'
-def etcc(text):
+from typing import List
+
+from pythainlp.corpus import get_corpus
+from pythainlp.tokenize import Tokenizer
+
+_cut_etcc = Tokenizer(get_corpus("etcc.txt"), engine="longest")
+_PAT_ENDING_CHAR = "[ะาๆฯๅำ]"
+_RE_ENDING_CHAR = re.compile(_PAT_ENDING_CHAR)
+
+
+def _cut_subword(tokens: List[str]) -> List[str]:
+    _j = len(tokens)
+    _i = 0
+    while True:
+        if _i == _j:
+            break
+        if (
+            _RE_ENDING_CHAR.search(tokens[_i])
+            and _i > 0
+            and len(tokens[_i]) == 1
+        ):
+            tokens[_i - 1] += tokens[_i]
+            del tokens[_i]
+            _j -= 1
+        _i += 1
+    return tokens
+
+
+def segment(text: str) -> List[str]:
     """
-    Enhanced Thai Character Cluster (ETCC)
-    คั่นด้วย /
-    รับ str
-    ส่งออก str
+    Segmenting text into ETCCs.
+
+    Enhanced Thai Character Cluster (ETCC) is a kind of subword unit.
+    The concept was presented in Inrut, Jeeragone, Patiroop Yuanghirun,
+    Sarayut Paludkong, Supot Nitsuwat, and Para Limmaneepraserth.
+    "Thai word segmentation using combination of forward and backward
+    longest matching techniques." In International Symposium on Communications
+    and Information Technology (ISCIT), pp. 37-40. 2001.
+
+    :param str text: text to be tokenized to character clusters
+    :return: list of clusters, tokenized from the text
+    :return: list[str]
     """
-    if (re.search('[เแ]'+c+'['+''.join(UV)+']'+'\w',text,re.U)):
-        search=re.findall('[เแ]'+c+'['+''.join(UV)+']'+'\w',text,re.U)
-        for i in search:
-            text=re.sub(i, '/'+i+'/', text)
-    if (re.search(c+'['+''.join(UV1)+']'+c+c+'ุ'+'์',text,re.U)):
-        search=re.findall(c+'['+''.join(UV1)+']'+c+c+'ุ'+'์',text,re.U)
-        for i in search:
-            text=re.sub(i, '//'+i+'/', text)
-    if (re.search(c+uv2+c,text,re.U)):
-        search=re.findall(c+uv2+c,text,re.U)
-        for i in search:
-            text=re.sub(i, '/'+i+'/', text)
-    re.sub('//','/',text)
-    if (re.search('เ'+c+'า'+'ะ',text,re.U)):
-        search=re.findall('เ'+c+'า'+'ะ',text,re.U)
-        for i in search:
-            text=re.sub(i, '/'+i+'/', text)   
-    if (re.search('เ'+'\w\w'+'า'+'ะ',text,re.U)):
-        search=re.findall('เ'+'\w\w'+'า'+'ะ',text,re.U)
-        for i in search:
-            text=re.sub(i, '/'+i+'/', text)   
-    text=re.sub('//','/',text)
-    if (re.search(c+'['+''.join(UV1)+']'+c+c+'์',text,re.U)):
-        search=re.findall(c+'['+''.join(UV1)+']'+c+c+'์',text,re.U)
-        for i in search:
-            text=re.sub(i, '/'+i+'/', text)   
-    if (re.search('/'+c+''.join(['ุ', '์'])+'/',text,re.U)):
-        '''แก้ไขในกรณี พัน/ธุ์'''
-        search=re.findall('/'+c+''.join(['ุ', '์'])+'/',text,re.U)
-        for i in search:
-            ii=re.sub('/','', i)
-            text=re.sub(i,ii+'/', text)
-    return re.sub('//','/',text)
-if __name__ == '__main__':
-    print(etcc('พันธุ์เด็กเปียเสือเงินพังมือเพราะเกาะเอาะยีนส์เพราะเรือดีเพราะ'))
+
+    if not text or not isinstance(text, str):
+        return []
+
+    return _cut_subword(_cut_etcc.word_tokenize(text))
